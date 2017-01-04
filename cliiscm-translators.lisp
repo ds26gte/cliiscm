@@ -1,4 +1,4 @@
-;last modified 2017-01-03
+;last modified 2017-01-04
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -26,8 +26,6 @@
         ((null e)
          '())
         (t e)))
-
-;(trace translate-exp)
 
 (def-cliiscm-translator quote (x)
   (let ((*inside-quote-p* t))
@@ -115,8 +113,6 @@
 
 (defun nil-to-false (x)
   (if (not x) 'false x))
-
-;(trace nil-to-false)
 
 (defun translate-let-binding (x v)
   (cond ((special-var-p x)
@@ -232,7 +228,7 @@
     `(let ((%dotimes-n ,(translate-exp (cadr i-n)))
            (,i 0))
        ,(translate-exp `(loop
-                          (when (>= ,i %dotimes-n) 
+                          (when (>= ,i %dotimes-n)
                             ,(if (null res) `(return)
                                  `(return ,(translate-exp res))))
                           ,@ee
@@ -293,12 +289,19 @@
   (if (consp tags) tags
       (list tags)))
 
-;(trace translate-case-tags)
-
 (def-cliiscm-translator cond (&rest clauses)
-  `(cond ,@(mapcar (lambda (clause)
-                     (mapcar #'translate-exp clause))
-                   clauses)))
+  `(cond ,@(let (output-clauses
+                  (n (length clauses)))
+             (dotimes (i n)
+               (let* ((clause (elt clauses i))
+                      (clause-test (car clause))
+                      output-clause)
+                 (cond ((and (= i (1- n)) (eq clause-test 'true))
+                        (setq output-clause `(else ,@(mapcar #'translate-exp (cdr clause)))))
+                       (t
+                         (setq output-clause (mapcar #'translate-exp clause))))
+                 (setq output-clauses (append output-clauses (list output-clause)))))
+             output-clauses)))
 
 (def-cliiscm-translator when (test &rest clauses)
   `(cond (,(translate-exp test) ,@(mapcar #'translate-exp clauses))
