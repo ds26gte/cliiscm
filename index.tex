@@ -1,0 +1,68 @@
+\input texrc
+\title{CLiiScm}
+
+CLiiScm ports select Common Lisp files in the working
+directory to Racket. 
+
+Currently, it is used to create the Racket version of the Common
+Lisp source for
+\urlh{https://github.com/ds26gte/tex2page}{TeX2page}, to avoid the
+tedium of maintaining two (each about 10 kLoc) sources. The Racket
+version can be further converted to other Scheme dialects using
+\urlh{https://github.com/ds26gte/scmxlate}{Scmxlate}. 
+
+CLiiScm isn't a completely general-purpose translator.
+Specifically, it requires uses of the Common Lisp `loop` macro to
+be such that any `return` expressions occur only in a tail call
+position of an immediate subform of the `loop`. A more general
+translation of `loop` would have made the more common uses
+unnecessarily inefficient.
+
+Specify the files to be ported (without quotes) in the file
+`cliiscm-files-to-be-ported.lisp` in the working directory.  In
+the following, assume `jobname.lisp` to be a file to be ported.
+
+Start Common Lisp and the load the file `clliscm.lisp` (using the
+appropriate relative or full pathname). When clliscm is done, it
+will  generally leave for each `jobname.lisp` the ported
+equivalent `my-jobmame.lisp`. (You can use clliscm directives to
+change the name of the output file(s).)
+
+For each file `jobname.lisp` to be ported, a user override file
+`cliiscm-jobname.lisp` can be provided in the working directory.
+
+In the user override file, the following directives can be used
+to guide the porting process:
+
+(i) `(cliiscm-rename (old1 new1) ...)` will change all
+occurrences of `old1 ...` to `new1 ...`.
+
+(ii) `(cliiscm-rename-def (old1 new1) ...)` will ignore the
+definitions for `old1 ...` in `jobname.lisp` and will change all
+other occurrens of them to `new1 ...`.
+
+(iii) `(clisscm-ignore-def name1 ...)` will ignore the
+definitions for `name1 ...`.
+
+(iv) `(cliiscm-uncall name1 ...)` will ignore all top-level calls
+to `name1 ...`.
+
+(v) `(cliiscm-defsetf (getter1 setter1) ...)` will associate
+`setter1 ...` as the setter procedures for `getter1 ...`.
+
+(vi) `(cliiscm-insert x ...)` will insert `x ...` at the head of
+the output file.
+
+(vii) `(cliiscm-postamble)` will position the contents of the
+source file at that point, so any subsequent directives will go
+after that.
+
+(viii) `(cliiscm-postprocess x ...)` will perform the actions `x
+...` after the output file has been created. (This can be used
+to rename or change the permissions of the output file.)
+
+(ix) Any definitions in the user definition file will
+automatically cause definitions of the same names in the source
+file to be ignored.
+
+\bye

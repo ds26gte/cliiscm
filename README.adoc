@@ -1,0 +1,10 @@
+= CLiiScm
+
+CLiiScm ports selected Common Lisp files in the working directory
+to Racket. 
+
+Currently, it is used to translate the Common Lisp source for
+TeX2page into Racket, thus avoiding having to maintain two
+sources with the risk of skew.
+
+Details at http://ds26gte.github.io/cliiscm/index.html.
