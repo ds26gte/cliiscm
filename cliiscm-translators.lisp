@@ -228,7 +228,7 @@
     `(let ((%dotimes-n ,(translate-exp (cadr i-n)))
            (,i 0))
        ,(translate-exp `(loop
-                          (when (>= ,i %dotimes-n)
+                          (if (>= ,i %dotimes-n)
                             ,(if (null res) `(return)
                                  `(return ,(translate-exp res))))
                           ,@ee
@@ -239,7 +239,7 @@
     `(let ((%dolist-l ,(translate-exp (cadr x-l)))
            (,x false))
        ,(translate-exp `(loop
-                          (when (null? %dolist-l) (return))
+                          (if (null? %dolist-l) (return))
                           (set! ,x (car %dolist-l))
                           (set! %dolist-l (cdr %dolist-l))
                           ,@ee)))))
@@ -302,6 +302,11 @@
                          (setq output-clause (mapcar #'translate-exp clause))))
                  (setq output-clauses (append output-clauses (list output-clause)))))
              output-clauses)))
+
+(def-cliiscm-translator if (test then-branch &optional else-branch)
+  `(if ,(translate-exp test)
+       ,(translate-exp then-branch)
+       ,(translate-exp else-branch)))
 
 (def-cliiscm-translator when (test &rest clauses)
   `(cond (,(translate-exp test) ,@(mapcar #'translate-exp clauses))
