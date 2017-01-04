@@ -1,9 +1,9 @@
-;last modified 2017-01-01
-
 #+sbcl
 (declaim (sb-ext:muffle-conditions style-warning))
 
 (setq *print-case* :downcase)
+
+(defvar *cliiscm-version* "20170103") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -63,6 +63,8 @@
   (unless *source-file-translated-p*
     (setq *source-file-translated-p* t)
     (let ((*reading-source-file-p* t))
+      (format o "~%;Translated from Common Lisp source ~a by CLiiScm v. ~a.~%~%"
+              *source-file* *cliiscm-version*)
       (translate-file-to-port *source-file* o))))
 
 (defun defmacro-to-define-syntax (e)
