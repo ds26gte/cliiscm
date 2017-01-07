@@ -1,4 +1,4 @@
-;last modified 2017-01-04
+;last modified 2017-01-07
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -26,6 +26,28 @@
         ((null e)
          '())
         (t e)))
+
+(defun prune-begins (res)
+  (if (/= (length res) 1) res
+      (let ((a (car res)))
+        (cond ((atom a) res)
+              ((eq (car a) 'begin) (prune-begins (cdr a)))
+              (t res)))))
+
+(defun translate-implicit-progn (ee)
+  (let ((n (length ee)) res)
+    (dotimes (i n)
+      (let ((e-i (translate-exp (elt ee i))))
+        (unless (and (atom e-i) (< i (1- n)))
+          (setq res (append res (list e-i))))))
+    (prune-begins res)))
+
+(defun translate-progn (ee)
+  (let ((ee-i (translate-implicit-progn ee)))
+    (case (length ee-i)
+      (0 `false)
+      (1 (car ee-i))
+      (t `(begin ,@ee-i)))))
 
 (def-cliiscm-translator quote (x)
   (let ((*inside-quote-p* t))
@@ -92,13 +114,9 @@
                                                      (if (consp opt) (car opt) opt))
                                               (list-ref %lambda-rest-arg ,i)))))))
                    s)
-               ,@(mapcar #'translate-exp body))))
-        #|
+               ,@(translate-implicit-progn body))))
         `(lambda ,new-params
-           ,(translate-exp `(destructuring-bind ,opts %lambda-rest-arg ,@body)))
-        |#
-        `(lambda ,new-params
-           ,@(mapcar #'translate-exp body)))))
+           ,@(translate-implicit-progn body)))))
 
 (def-cliiscm-translator destructuring-bind (vars exp &rest body)
   (translate-exp `(apply (lambda ,vars ,@body) ,exp)))
@@ -139,28 +157,24 @@
                                        `(,x ,(intern (concatenate 'string "%FLUID-VAR-"
                                                        (symbol-name x)))))
                                      *fluid-vars*)
-                            ,@(mapcar #'translate-exp body))
-                (if (= (length body) 1)
-                    (translate-exp (car body))
-                    `(begin ,@(mapcar #'translate-exp body))))))))
+                            ,@(translate-implicit-progn body))
+                (translate-progn body))))))
 
 (def-cliiscm-translator let* (vars &rest body)
   (if vars (translate-exp `(let (,(car vars)) (let* ,(cdr vars) ,@body)))
-      (if (= (length body) 1)
-          (translate-exp (car body))
-          `(begin ,@(mapcar #'translate-exp body)))))
+      (translate-progn body)))
 
 (def-cliiscm-translator flet (vars &rest body)
   `(let ,(mapcar (lambda (x)
                    `(,(car x) ,(translate-exp `(lambda ,(cadr x) ,@(cddr x)))))
                  vars)
-     ,@(mapcar #'translate-exp body)))
+     ,@(translate-implicit-progn body)))
 
 (def-cliiscm-translator labels (vars &rest body)
   `(letrec ,(mapcar (lambda (x)
                       `(,(car x) ,(translate-exp `(lambda ,(cadr x) ,@(cddr x)))))
                     vars)
-     ,@(mapcar #'translate-exp body)))
+     ,@(translate-implicit-progn body)))
 
 (def-cliiscm-translator defun (fname params &rest body)
   (unless (member fname *defs-to-ignore*)
@@ -177,10 +191,7 @@
       (pop assignments))))
 
 (def-cliiscm-translator progn (&rest ee)
-  (case (length ee)
-    (0 `false)
-    (1 (translate-exp (car ee)))
-    (t `(begin ,@(mapcar #'translate-exp ee)))))
+  (translate-progn ee))
 
 (def-cliiscm-translator function (x)
   x)
@@ -205,9 +216,12 @@
 (def-cliiscm-translator declare (&rest ee)
   `false)
 
+(def-cliiscm-translator the (tipe val)
+  val)
+
 (def-cliiscm-translator prog1 (e &rest ee)
   `(let ((%prog1-first-value ,(translate-exp e)))
-     ,@(mapcar #'translate-exp ee)
+     ,@(translate-implicit-progn ee)
      %prog1-first-value))
 
 (def-cliiscm-translator loop (&rest ee)
@@ -219,7 +233,8 @@
      (let %loop ()
        ;(set! %loop-result (+ %loop-result 1))
        ;(when (> %loop-result 10000) (error "inf loop?" ',ee))
-       ,@(mapcar (lambda (e) `(unless %loop-returned ,(translate-exp e))) ee)
+       ,@(mapcar (lambda (e) 
+                   (translate-exp `(%unless %loop-returned ,e))) ee)
        (if %loop-returned %loop-result (%loop)))))
 
 (def-cliiscm-translator dotimes (i-n &rest ee)
@@ -297,9 +312,13 @@
                       (clause-test (car clause))
                       output-clause)
                  (cond ((and (= i (1- n)) (eq clause-test 'true))
-                        (setq output-clause `(else ,@(mapcar #'translate-exp (cdr clause)))))
+                        (setq output-clause
+                              `(else ,@(translate-implicit-progn
+                                         (cdr clause)))))
                        (t
-                         (setq output-clause (mapcar #'translate-exp clause))))
+                         (setq output-clause
+                               `(,(translate-exp clause-test)
+                                  ,@(translate-implicit-progn (cdr clause))))))
                  (setq output-clauses (append output-clauses (list output-clause)))))
              output-clauses)))
 
@@ -309,11 +328,17 @@
        ,(translate-exp else-branch)))
 
 (def-cliiscm-translator when (test &rest clauses)
-  `(cond (,(translate-exp test) ,@(mapcar #'translate-exp clauses))
+  `(cond (,(translate-exp test)
+           ,@(translate-implicit-progn clauses))
          (else false)))
 
+(def-cliiscm-translator %unless (test &rest clauses)
+  `(unless ,(translate-exp test)
+     ,@(translate-implicit-progn clauses)))
+
 (def-cliiscm-translator unless (test &rest clauses)
-  `(cond ((not ,(translate-exp test)) ,@(mapcar #'translate-exp clauses))
+  `(cond ((not ,(translate-exp test))
+          ,@(translate-implicit-progn clauses))
          (else false)))
 
 (def-cliiscm-translator case (tag &rest clauses)
@@ -327,10 +352,12 @@
                   (clause-action (cdr clause))
                   output-clause)
            (cond ((and (= i (- n 1)) (eq clause-tag 'true))
-                  (setq output-clause `(else ,@(mapcar #'translate-exp clause-action))))
+                  (setq output-clause
+                        `(else ,@(translate-implicit-progn clause-action))))
                  (t
-                   (setq output-clause `(,(translate-case-tags clause-tag)
-                                          ,@(mapcar #'translate-exp clause-action)))))
+                   (setq output-clause
+                         `(,(translate-case-tags clause-tag)
+                            ,@(translate-implicit-progn clause-action)))))
            (setq output-clauses (append output-clauses (list output-clause)))))
          output-clauses)))
 
@@ -356,11 +383,13 @@
                         (clause-action (cdr clause))
                         output-clause)
                    (cond ((and (= i (- n 1)) (eq clause-tag 'true))
-                          (setq output-clause `(else ,@(mapcar #'translate-exp clause-action))))
+                          (setq output-clause
+                                `(else ,@(translate-implicit-progn
+                                           clause-action))))
                          (t
                            (setq output-clause
                                  `(,(translate-typecase-tag clause-tag)
-                                    ,@(mapcar #'translate-exp clause-action)))))
+                                    ,@(translate-implicit-progn clause-action)))))
                    (setq output-clauses (append output-clauses (list output-clause)))))
                output-clauses))))
 
@@ -418,7 +447,7 @@
   (let ((wof-port (car open-args)))
     (translate-exp
       `(let* ((,wof-port (open ,@(cdr open-args)))
-              (%with-open-file-res (begin ,@body)))
+              (%with-open-file-res (progn ,@body)))
          (when ,wof-port
            ((if (input-port? ,wof-port)
                 close-input-port

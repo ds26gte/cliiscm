@@ -1,17 +1,17 @@
 \input texrc
-\title{CLiiScm}
+\title CLiiScm
 
 CLiiScm ports select Common Lisp files in the working
-directory to Racket. 
+directory to Racket.
 
 Currently, it is used to create the Racket version of the Common
 Lisp source for
 \urlh{https://github.com/ds26gte/tex2page}{TeX2page}, to avoid the
 tedium of maintaining two (each about 10 kLoc) sources. The Racket
 version can be further converted to other Scheme dialects using
-\urlh{https://github.com/ds26gte/scmxlate}{Scmxlate}. 
+\urlh{https://github.com/ds26gte/scmxlate}{Scmxlate}.
 
-CLiiScm isn't a completely general-purpose translator.
+CLiiScm isn’t a completely general-purpose translator.
 Specifically, it requires uses of the Common Lisp `loop` macro to
 be such that any `return` expressions occur only in a tail call
 position of an immediate subform of the `loop`. A more general
