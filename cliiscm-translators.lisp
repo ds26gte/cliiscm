@@ -10,6 +10,11 @@
   `(setf (gethash ',name *cliiscm-translators*)
          (lambda ,params ,@body)))
 
+(defun tree-member (x tr)
+  (if (consp tr) (or (tree-member x (car tr))
+                     (tree-member x (cdr tr)))
+      (eq x tr)))
+
 (defun translate-exp (e)
   (cond ((consp e)
          ;(format t "translating ~s~%" (car e))
@@ -27,20 +32,24 @@
          '())
         (t e)))
 
-(defun prune-begins (res)
-  (if (/= (length res) 1) res
-      (let ((a (car res)))
-        (cond ((atom a) res)
-              ((eq (car a) 'begin) (prune-begins (cdr a)))
-              (t res)))))
+(defun prune-begins (translated-progn-body &optional internalp)
+  (let (res (n (length translated-progn-body)))
+    (dotimes (i n)
+      (let ((e-i (elt translated-progn-body i)))
+        (cond ((atom e-i)
+               (unless (or internalp (< i (1- n)))
+                 (setq res (append res (list e-i)))))
+              ((eq (car e-i) 'begin)
+               (setq res (append res
+                                 (prune-begins (cdr e-i)
+                                               (or internalp (< i (1- n)))))))
+              (t
+                (setq res (append res (list e-i)))))))
+    res))
 
 (defun translate-implicit-progn (ee)
   (let ((n (length ee)) res)
-    (dotimes (i n)
-      (let ((e-i (translate-exp (elt ee i))))
-        (unless (and (atom e-i) (< i (1- n)))
-          (setq res (append res (list e-i))))))
-    (prune-begins res)))
+    (prune-begins (mapcar #'translate-exp ee))))
 
 (defun translate-progn (ee)
   (let ((ee-i (translate-implicit-progn ee)))
@@ -75,7 +84,7 @@
                (cdr %so-d))))))))
 
 (def-cliiscm-translator lambda (params &rest body)
-  (let* ((i (- (length params) 1))
+  (let* ((i (1- (list-length params)))
          (new-params '())
          (opts nil))
     (loop
@@ -84,13 +93,12 @@
         (case param
           (&optional (setq opts new-params)
                      (setq new-params '(&rest %lambda-rest-arg)))
-          (&rest (unless (= (length new-params) 1)
-                   (error 'lambda ""))
+          (&rest (unless (= (list-length new-params) 1) (error 'lambda ""))
                  (push param new-params))
           (t (push param new-params)))
         (decf i)))
-    (let ((last-i (- (length new-params) 1)))
-      (when (and (> last-i 0) (eq (elt new-params (- last-i 1)) '&rest))
+    (let ((last-i (- (list-length new-params) 1)))
+      (when (and (> last-i 0) (eq (elt new-params (1- last-i)) '&rest))
         (if (= last-i 1)
             (setq new-params (elt new-params last-i))
             (let ((new-new-params (butlast new-params 2)))
@@ -98,7 +106,7 @@
               (setq new-params new-new-params)))))
     ;(format t "opts= ~s; body= ~s~%" opts body)
     (if opts
-        (let ((opts-len (length opts)))
+        (let ((opts-len (list-length opts)))
           `(lambda ,new-params
              (let ((%lambda-rest-arg-len (length %lambda-rest-arg))
                    ,@(mapcar (lambda (opt)
@@ -120,6 +128,16 @@
 
 (def-cliiscm-translator destructuring-bind (vars exp &rest body)
   (translate-exp `(apply (lambda ,vars ,@body) ,exp)))
+
+(def-cliiscm-translator multiple-value-bind (vars exp &rest body)
+  (let* ((params '%mvb-rest-arg)
+         (i (1- (list-length vars))))
+    (loop
+      (when (< i 0) (return))
+      (setq params (cons (elt vars i) params))
+      (decf i))
+    `(apply (lambda ,params ,@(translate-implicit-progn body))
+            ,(translate-exp exp))))
 
 (defvar *fluid-vars* '())
 
@@ -152,13 +170,14 @@
                                  (translate-let-binding (car x) (translate-exp (cadr x)))
                                  (translate-let-binding x 'false)))
                  vars)
-           ,(if *fluid-vars*
-                `(fluid-let ,(mapcar (lambda (x)
-                                       `(,x ,(intern (concatenate 'string "%FLUID-VAR-"
-                                                       (symbol-name x)))))
-                                     *fluid-vars*)
-                            ,@(translate-implicit-progn body))
-                (translate-progn body))))))
+           ,@(if *fluid-vars*
+                 (list
+                   `(fluid-let ,(mapcar (lambda (x)
+                                          `(,x ,(intern (concatenate 'string "%FLUID-VAR-"
+                                                          (symbol-name x)))))
+                                        *fluid-vars*)
+                               ,@(translate-implicit-progn body)))
+                 (translate-implicit-progn body))))))
 
 (def-cliiscm-translator let* (vars &rest body)
   (if vars (translate-exp `(let (,(car vars)) (let* ,(cdr vars) ,@body)))
@@ -233,8 +252,21 @@
      (let %loop ()
        ;(set! %loop-result (+ %loop-result 1))
        ;(when (> %loop-result 10000) (error "inf loop?" ',ee))
-       ,@(mapcar (lambda (e) 
-                   (translate-exp `(%unless %loop-returned ,e))) ee)
+       ,@(prune-begins
+           (let (res (n (length ee)) return-found-p)
+             (dotimes (i n)
+               (setq res
+                     (append
+                       res
+                       (list
+                         (let ((e (elt ee i)))
+                           (cond (return-found-p
+                                   (translate-exp `(%unless %loop-returned ,e)))
+                                 (t
+                                   (when (tree-member 'return e)
+                                     (setq return-found-p t))
+                                   (translate-exp e))))))))
+             res))
        (if %loop-returned %loop-result (%loop)))))
 
 (def-cliiscm-translator dotimes (i-n &rest ee)
@@ -543,6 +575,9 @@
 (def-cliiscm-translator length (s)
   `(let ((%length-arg ,(translate-exp s)))
      ((if (string? %length-arg) string-length length) %length-arg)))
+
+(def-cliiscm-translator list-length (s)
+  `(length ,(translate-exp s)))
 
 (def-cliiscm-translator intern (s &optional p)
   (if (eq p :keyword)

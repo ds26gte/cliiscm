@@ -1,6 +1,6 @@
 ;name conversions
 
-;last change 2017-01-01
+;last change 2017-01-07
 
 (defvar *cliiscm-aliases-list*
   '(
@@ -68,7 +68,6 @@
     1- sub1
     integerp integer?
     code-char integer->char
-    list-length length
     elt list-ref
     mapcar map
     mod modulo
@@ -122,7 +121,6 @@
     zerop zero?
 
     progn begin
-    multiple-value-bind destructuring-bind
     values list
     t true
 
