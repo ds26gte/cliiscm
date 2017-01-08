@@ -160,10 +160,10 @@
 (def-cliiscm-translator let (vars &rest body)
   (if (and (= (length body) 1)
            (consp (car body)) (eq (car (car body)) 'defun))
-      (translate-exp `(define ,(cadr (car body))
-                        (let ,vars
-                          (lambda ,(caddr (car body))
-                            ,@(cdddr (car body))))))
+      `(define ,(cadr (car body))
+         ,(translate-exp `(let ,vars
+                            (lambda ,(caddr (car body))
+                              ,@(cdddr (car body))))))
       (let ((*fluid-vars* '()))
         `(let ,(mapcar
                  (lambda (x) (if (consp x)
@@ -197,8 +197,8 @@
 
 (def-cliiscm-translator defun (fname params &rest body)
   (unless (member fname *defs-to-ignore*)
-    `(define ,fname
-       ,(translate-exp `(lambda ,params ,@body)))))
+    (let ((lambda-exp (translate-exp `(lambda ,params ,@body))))
+      `(define ,(cons fname (cadr lambda-exp)) ,@(cddr lambda-exp)))))
 
 (def-cliiscm-translator setq (&rest ee)
   (let ((assignments ee) s last-x)
@@ -302,14 +302,10 @@
         `(define ,x ,(translate-exp v)))))
 
 (def-cliiscm-translator incf (x &optional v)
-  (let ((lhs (translate-exp x)))
-    `(let ((%tmp (+ ,lhs ,(translate-exp (or v 1)))))
-       ,(translate-exp `(setf ,x %tmp)))))
+  (translate-exp `(setf ,x (+ ,(translate-exp x) ,(translate-exp (or v 1))))))
 
 (def-cliiscm-translator decf (x &optional v)
-  (let ((lhs (translate-exp x)))
-    `(let ((%tmp (- ,lhs ,(translate-exp (or v 1)))))
-       ,(translate-exp `(setf ,x %tmp)))))
+  (translate-exp `(setf ,x (- ,(translate-exp x) ,(translate-exp (or v 1))))))
 
 (def-cliiscm-translator setf (&rest ee)
   (let ((assignments ee) s last-lhs)
@@ -556,15 +552,15 @@
          %read-line-res)))
 
 (def-cliiscm-translator push (v s)
-  `(let ((%push-new-stack (cons ,(translate-exp v) ,(translate-exp s))))
-     ,(translate-exp `(setf ,s %push-new-stack))))
+  (translate-exp `(setf ,s (cons ,v ,s))))
 
 (def-cliiscm-translator pushnew (v s &rest ee)
   `(let ((%push-added-value ,(translate-exp v))
          (%push-old-stack ,(translate-exp s)))
      (cond ((member %push-added-value %push-old-stack) %push-old-stack)
-           (else ,(translate-exp
-                    `(setf ,s (cons %push-added-value %push-old-stack)))))))
+           (else ,@(prune-begins
+                     (list (translate-exp
+                             `(setf ,s (cons %push-added-value %push-old-stack)))))))))
 
 (def-cliiscm-translator pop (s)
   `(let* ((%pop-old-stack ,(translate-exp s))

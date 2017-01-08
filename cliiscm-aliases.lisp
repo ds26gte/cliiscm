@@ -98,6 +98,7 @@
     string-greaterp string-ci>?
     string-not-greaterp string-ci<=?
     string-not-lessp string-ci>=?
+    subseq substring
     char string-ref
 
     #+(and unix (or allegro clisp)) shell
