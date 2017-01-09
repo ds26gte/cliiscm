@@ -3,7 +3,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20170103") ;last change
+(defvar *cliiscm-version* "20170110") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -152,6 +152,7 @@
     (system (concatenate 'string "sed -i -e 's/#\\\\Newline/#\\\\newline/g' " target-file))
     (system (concatenate 'string "sed -i -e 's/#\\\\Return/#\\\\return/g' " target-file))
     (system (concatenate 'string "sed -i -e 's/#\\\\Tab/#\\\\tab/g' " target-file))
+    (system (concatenate 'string "sed -i -e 's/#\\\\$/#\\\\ /' " target-file))
     ;(format t "postproc= ~s~%" *postprocessing*)
     (dolist (p *postprocessing*)
       (eval p))))

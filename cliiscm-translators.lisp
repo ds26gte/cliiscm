@@ -1,4 +1,4 @@
-;last modified 2017-01-07
+;last modified 2017-01-15
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -15,14 +15,21 @@
                      (tree-member x (cdr tr)))
       (eq x tr)))
 
+(defun proper-list-p (s)
+  (let ((s s))
+    (loop
+      (cond ((null s) (return t))
+            ((atom s) (return nil))
+            (t (pop s))))))
+
 (defun translate-exp (e)
   (cond ((consp e)
-         ;(format t "translating ~s~%" (car e))
          (cond ((and (not *inside-quote-p*) (eq (car e) 'quote) (null (cadr e)))
                 'null)
                ((setq *it* (gethash (car e) *cliiscm-translators*))
                 (apply *it* (cdr e)))
-               (t (mapcar #'translate-exp e))))
+               ((proper-list-p e) (mapcar #'translate-exp e))
+               (t (cons (translate-exp (car e)) (translate-exp (cdr e))))))
         ((and (keywordp e) (not *inside-quote-p*))
          (list 'quote e))
         ((and (null e) (not *inside-quote-p*))
@@ -86,13 +93,16 @@
 (def-cliiscm-translator lambda (params &rest body)
   (let* ((i (1- (list-length params)))
          (new-params '())
-         (opts nil))
+         (opts nil)
+         (keys nil))
     (loop
       (when (< i 0) (return))
       (let ((param (elt params i)))
         (case param
           (&optional (setq opts new-params)
                      (setq new-params '(&rest %lambda-rest-arg)))
+          (&key (setq keys new-params)
+                (setq new-params '(&rest %lambda-rest-arg)))
           (&rest (unless (= (list-length new-params) 1) (error 'lambda ""))
                  (push param new-params))
           (t (push param new-params)))
@@ -104,27 +114,46 @@
             (let ((new-new-params (butlast new-params 2)))
               (setf (cdr (nthcdr (- last-i 2) new-new-params)) (elt new-params last-i))
               (setq new-params new-new-params)))))
-    ;(format t "opts= ~s; body= ~s~%" opts body)
-    (if opts
-        (let ((opts-len (list-length opts)))
-          `(lambda ,new-params
-             (let ((%lambda-rest-arg-len (length %lambda-rest-arg))
-                   ,@(mapcar (lambda (opt)
-                               (if (consp opt) opt
-                                   `(,opt false)))
-                             opts))
-               ,@(let (s)
-                   (dotimes (i opts-len)
-                     (setq s
-                           (append s
-                                   (list `(when (< ,i %lambda-rest-arg-len)
-                                            (set! ,(let ((opt (elt opts i)))
-                                                     (if (consp opt) (car opt) opt))
-                                              (list-ref %lambda-rest-arg ,i)))))))
-                   s)
-               ,@(translate-implicit-progn body))))
-        `(lambda ,new-params
-           ,@(translate-implicit-progn body)))))
+    (cond (opts
+            (let ((opts-len (list-length opts)))
+              `(lambda ,new-params
+                 (let ((%lambda-rest-arg-len (length %lambda-rest-arg))
+                       ,@(mapcar (lambda (opt)
+                                   (if (consp opt) opt
+                                       `(,opt false)))
+                                 opts))
+                   ,@(let (s
+                            (opts (mapcar (lambda (opt)
+                                            (if (consp opt) (car opt) opt)) opts)))
+                       (dotimes (i opts-len)
+                         (setq s
+                               (append s
+                                       (list `(when (< ,i %lambda-rest-arg-len)
+                                                (set! ,(elt opts i)
+                                                  (list-ref %lambda-rest-arg ,i)))))))
+                       s)
+                   ,@(translate-implicit-progn body)))))
+          (keys
+            `(lambda ,new-params
+               (let ,(mapcar (lambda (key)
+                               (if (consp key) key
+                                   `(,key false)))
+                             keys)
+                 ,@(let (s
+                          (keys (mapcar (lambda (key)
+                                          (if (consp key) (car key) key)) keys)))
+                     (dolist (key keys)
+                       (let ((key-word (intern (symbol-name key) :keyword)))
+                         (setq s
+                               (append s
+                                       (list `(let ((%key-found (member ',key-word
+                                                                        %lambda-rest-arg)))
+                                                (when %key-found
+                                                  (set! ,key (cadr %key-found)))))))))
+                     s)
+                 ,@(translate-implicit-progn body))))
+          (t `(lambda ,new-params
+               ,@(translate-implicit-progn body))))))
 
 (def-cliiscm-translator destructuring-bind (vars exp &rest body)
   (translate-exp `(apply (lambda ,vars ,@body) ,exp)))
@@ -231,6 +260,12 @@
                        (append %res (if (string? %a) (string->list %a) %a)))))
                (%concatenate-loop (cdr %ee)))))
        %res)))
+
+(def-cliiscm-translator eval-when (&rest ee)
+  `false)
+
+(def-cliiscm-translator declaim (&rest ee)
+  `false)
 
 (def-cliiscm-translator declare (&rest ee)
   `false)
@@ -370,7 +405,6 @@
          (else false)))
 
 (def-cliiscm-translator case (tag &rest clauses)
-  ;(format t "doing translate of case~%")
   `(case ,(translate-exp tag)
      ,@(let (output-clauses
               (n (length clauses)))
@@ -394,7 +428,6 @@
     (translate-exp `(case ,tag ,@clauses-plus))))
 
 (defun translate-typecase-tag (tipe)
-  ;(format t "tipe= ~s~%" tipe)
   (case tipe
     (character `(char? %tag))
     (number `(number? %tag))
@@ -421,44 +454,56 @@
                    (setq output-clauses (append output-clauses (list output-clause)))))
                output-clauses))))
 
+(def-cliiscm-translator atom (x)
+  `(not (pair? ,(translate-exp x))))
+
 (def-cliiscm-translator format (where how &rest whats)
-  `(let ((%where ,(translate-exp where)))
-     (cond ((or (eqv? %where false) (null? %where))
-            (format ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
-           ((eqv? %where true)
-            (printf ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
-           (else
-            (fprintf %where ,(translate-exp how) ,@(mapcar #'translate-exp whats))))))
+  (cond ((not where) `(format ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
+        ((eq where 'true) `(printf ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
+        (t `(let ((%where ,(translate-exp where)))
+              (cond ((or (eqv? %where false) (null? %where))
+                     (format ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
+                    ((eqv? %where true)
+                     (printf ,(translate-exp how) ,@(mapcar #'translate-exp whats)))
+                    (else
+                      (fprintf %where ,(translate-exp how) ,@(mapcar #'translate-exp whats))))))))
 
 (def-cliiscm-translator load (f &rest ee)
-  `(let* ((%f ,(translate-exp f))
-          (%ee (list ,@(mapcar #'translate-exp ee)))
-          (%if-does-not-exist ':error)
-          (%if-does-not-exist-from-user (memv ':if-does-not-exist %ee)))
-     (when %if-does-not-exist-from-user
-       (set! %if-does-not-exist (cadr %if-does-not-exist-from-user)))
-     (cond ((and (not %if-does-not-exist) (not (file-exists? %f))) false)
-           (else (load %f)))))
+  (if (null ee)
+      `(load ,(translate-exp f))
+      `(let* ((%f ,(translate-exp f))
+              (%ee (list ,@(mapcar #'translate-exp ee)))
+              (%if-does-not-exist (cadr (memv ':if-does-not-exist %ee))))
+         (cond ((and (not %if-does-not-exist) (not (file-exists? %f))) false)
+               (else (load %f))))))
 
 (def-cliiscm-translator open (f &rest ee)
-  `(let* ((%f ,(translate-exp f))
-          (%ee (list ,@(mapcar #'translate-exp ee)))
-          (%direction (memv ':direction %ee))
-          (%if-exists (memv ':if-exists %ee))
-          (%if-does-not-exist ':error)
-          (%if-does-not-exist-from-user (memv ':if-does-not-exist %ee)))
-     (when %direction
-       (set! %direction (cadr %direction)))
-     (when %if-exists
-       (set! %if-exists (cadr %if-exists)))
-     (when %if-does-not-exist-from-user
-       (set! %if-does-not-exist (cadr %if-does-not-exist-from-user)))
-     (cond ((eqv? %direction ':output)
-            (when (and (eqv? %if-exists ':supersede) (file-exists? %f))
-              (delete-file %f))
-            (open-output-file %f))
-           ((and (not %if-does-not-exist) (not (file-exists? %f))) false)
-           (else (open-input-file %f)))))
+  (cond ((null ee)
+         `(open-input-file ,(translate-exp f)))
+        ((and (eq (list-length ee) 2) (eq (car ee) :direction)
+              (member (cadr ee) '(:input :output)))
+         (ecase (cadr ee)
+           (:input `(open-input-file ,(translate-exp f)))
+           (:output `(open-output-file ,(translate-exp f)))))
+        (t
+          `(let* ((%f ,(translate-exp f))
+                  (%ee (list ,@(mapcar #'translate-exp ee)))
+                  (%direction (memv ':direction %ee))
+                  (%if-exists (memv ':if-exists %ee))
+                  (%if-does-not-exist ':error)
+                  (%if-does-not-exist-from-user (memv ':if-does-not-exist %ee)))
+             (when %direction
+               (set! %direction (cadr %direction)))
+             (when %if-exists
+               (set! %if-exists (cadr %if-exists)))
+             (when %if-does-not-exist-from-user
+               (set! %if-does-not-exist (cadr %if-does-not-exist-from-user)))
+             (cond ((eqv? %direction ':output)
+                    (when (and (eqv? %if-exists ':supersede) (file-exists? %f))
+                      (delete-file %f))
+                    (open-output-file %f))
+                   ((and (not %if-does-not-exist) (not (file-exists? %f))) false)
+                   (else (open-input-file %f)))))))
 
 (def-cliiscm-translator close (port)
   `(let ((%close-port-arg ,(translate-exp port)))
@@ -491,16 +536,40 @@
 |#
 
 (def-cliiscm-translator position (v s &rest ee)
-  `(let ((%position-v ,(translate-exp v))
-          (%position-s ,(translate-exp s))
-          (%ee (list ,@(mapcar #'translate-exp ee))))
-     (let ((%position-from-end (memv ':from-end %ee)))
-       (when %position-from-end
-         (set! %position-from-end (cadr %position-from-end)))
-       (if (string? %position-s)
-           ((if %position-from-end string-reverse-index string-index)
-            %position-s %position-v)
-           (list-position %position-v %position-s)))))
+  (let ((has-from-end-p (member :from-end ee))
+        (has-start-p (member :start ee)))
+    (cond ((and has-from-end-p has-start-p)
+           (error 'position "can't deal with both :from-end and :start"))
+          (has-from-end-p
+            `(let ((%position-v ,(translate-exp v))
+                   (%position-s ,(translate-exp s))
+                   (%ee (list ,@(mapcar #'translate-exp ee))))
+               (cond ((string? %position-s)
+                      (string-reverse-index %position-s %position-v))
+                     (else
+                       ;not dealing with :from-end for lists
+                       (list-position %position-v %position-s)))))
+          (has-start-p
+            `(let ((%position-v ,(translate-exp v))
+                   (%position-s ,(translate-exp s))
+                   (%ee (list ,@(mapcar #'translate-exp ee))))
+               (let ((%position-start (cadr (memv ':start %ee))))
+                 (cond ((string? %position-s)
+                        (let* ((%position-n (string-length %position-s))
+                               (%position-i (string-index
+                                              (substring %position-s
+                                                         %position-start %position-n)
+                                              %position-v)))
+                          (and %position-i (+ %position-start %position-i))))
+                       (else
+                         ;not dealing with :start for lists
+                         (list-position %position-v %position-s))))))
+          (t `(let ((%position-v ,(translate-exp v))
+                    (%position-s ,(translate-exp s)))
+                (cond ((string? %position-s)
+                       (string-index %position-s %position-v))
+                      (else
+                        (list-position %position-v %position-s))))))))
 
 (def-cliiscm-translator nth (i ll)
   (translate-exp `(list-ref ,ll ,i)))
@@ -531,6 +600,14 @@
          (when (eof-object? %read-res)
              (set! %read-res ,(translate-exp (caddr ee))))
          %read-res)))
+
+(def-cliiscm-translator peek-char (x port &rest ee)
+  (if (null ee)
+      `(peek-char ,(translate-exp port)))
+  `(let ((%peek-char-res (peek-char ,(translate-exp port))))
+     (when (eof-object? %peek-char-res)
+       (set! %peek-char-res ,(translate-exp (car ee))))
+     %peek-char-res))
 
 (def-cliiscm-translator read-char (&rest ee)
   (if (null ee)
@@ -567,6 +644,9 @@
           (%pop-top-value (car %pop-old-stack)))
      ,(translate-exp `(setf ,s (cdr %pop-old-stack)))
      %pop-top-value))
+
+(def-cliiscm-translator /= (&rest ee)
+  `(not (= ,@(mapcar #'translate-exp ee))))
 
 (def-cliiscm-translator length (s)
   `(let ((%length-arg ,(translate-exp s)))
