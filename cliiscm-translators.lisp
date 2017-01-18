@@ -1,4 +1,4 @@
-;last modified 2017-01-15
+;last modified 2017-01-17
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -15,6 +15,7 @@
                      (tree-member x (cdr tr)))
       (eq x tr)))
 
+#-clisp
 (defun proper-list-p (s)
   (let ((s s))
     (loop

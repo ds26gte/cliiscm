@@ -1,47 +1,106 @@
 ;name conversions
 
-;last change 2017-01-07
+;last change 2017-01-18
 
 (defvar *cliiscm-aliases-list*
   '(
 
-    every andmap
-    char-code char->integer
-    char-int char->integer
-    characterp char?
-    char= char=?
-    char< char<?
-    char> char>?
-    char<= char<=?
-    char>= char>=?
-    char-equal char-ci=?
-    char-lessp char-ci<?
-    char-greaterp char-ci>?
-    char-not-greaterp char-ci<=?
-    char-not-lessp char-ci>=?
-    lower-case-p char-lower-case?
-    upper-case-p char-upper-case?
-    alpha-char-p char-alphabetic?
-    digit-char-p char-numeric?
-    complexp complex?
-    princ display
-    eq eq?
-    equal equal?
-    eql eqv?
-    evenp even?
-    probe-file file-exists?
-
     *standard-input* (current-input-port)
     *standard-output* (current-output-port)
-
-    file-write-date file-or-directory-modify-seconds
-    get-universal-time current-seconds
-
-    force-output flush-output
-    mapc for-each
-    get-output-stream-string get-output-string
-
+    1+ add1
+    1- sub1
+    ;floor quotient
+    alpha-char-p char-alphabetic?
+    char string-ref
+    char-code char->integer
+    char-equal char-ci=?
+    char-greaterp char-ci>?
+    char-int char->integer
+    char-lessp char-ci<?
+    char-not-greaterp char-ci<=?
+    char-not-lessp char-ci>=?
+    char< char<?
+    char<= char<=?
+    char= char=?
+    char> char>?
+    char>= char>=?
+    characterp char?
+    code-char integer->char
+    complexp complex?
+    consp pair?
+    digit-char-p char-numeric?
+    dribble transcript-off
+    dribble transcript-on
+    elt list-ref
+    eq eq?
+    eql eqv?
+    equal equal?
     eval eval1
+    evenp even?
+    every andmap
+    file-write-date file-or-directory-modify-seconds
+    force-output flush-output
+    functionp procedure?
+    get-output-stream-string get-output-string
+    get-universal-time current-seconds
+    integerp integer?
+    lower-case-p char-lower-case?
+    make-string-input-stream open-input-string
+    make-string-output-stream open-output-string
+    mapc for-each
+    mapcar map
+    minusp negative?
+    mod modulo
+    null null?
+    numberp number?
+    oddp odd?
+    plusp positive?
+    prin1 write
+    princ display
+    probe-file file-exists?
+    progn begin
+    realp real?
+    rplaca set-car!
+    rplacd set-cdr!
+    some ormap
+    sort sort!
+    string-equal string-ci=?
+    string-greaterp string-ci>?
+    string-lessp string-ci<?
+    string-not-greaterp string-ci<=?
+    string-not-lessp string-ci>=?
+    string< string<?
+    string<= string<=?
+    string= string=?
+    string> string>?
+    string>= string>=?
+    stringp string?
+    subseq substring
+    svref vector-ref
+    t true
+    terpri newline
+    upper-case-p char-upper-case?
+    values list
+    values void
+    vectorp vector?
+    zerop zero?
+
+    ;quasiquote
+
+    #+(or ecl mkcl) si:quasiquote 
+    #+(or ecl mkcl) quasiquote
+
+    ;unquote
+
+    #+(or ecl mkcl) si:unquote
+    #+(or ecl mkcl) unquote
+
+    ;unquote-splice
+
+    #+(or ecl mkcl) si:unquote-splice
+    #+(or ecl mkcl) unquote-splice
+
+    ;getenv
 
     #+allegro system::getenv
     #+allegro getenv
@@ -64,42 +123,7 @@
     #+abcl ext:getenv
     #+abcl getenv
 
-    1+ add1
-    1- sub1
-    integerp integer?
-    code-char integer->char
-    elt list-ref
-    mapcar map
-    mod modulo
-    minusp negative?
-    terpri newline
-    null null?
-    numberp number?
-    oddp odd?
-    make-string-input-stream open-input-string
-    make-string-output-stream open-output-string
-    some ormap
-    consp pair?
-    plusp positive?
-    functionp procedure?
-    ;floor quotient
-    realp real?
-    rplaca set-car!
-    rplacd set-cdr!
-    sort sort!
-    stringp string?
-    string= string=?
-    string< string<?
-    string> string>?
-    string<= string<=?
-    string>= string>=?
-    string-equal string-ci=?
-    string-lessp string-ci<?
-    string-greaterp string-ci>?
-    string-not-greaterp string-ci<=?
-    string-not-lessp string-ci>=?
-    subseq substring
-    char string-ref
+    ;system
 
     #+(and unix (or allegro clisp)) shell
     #+(and unix (or allegro clisp)) system
@@ -113,17 +137,8 @@
     #+abcl ext:run-shell-command
     #+abcl system
 
-    dribble transcript-on
-    dribble transcript-off
-    vectorp vector?
-    svref vector-ref
-    values void
-    prin1 write
-    zerop zero?
-
-    progn begin
-    values list
-    t true
+    #+mkcl mkcl:system
+    #+mkcl system
 
     ))
 

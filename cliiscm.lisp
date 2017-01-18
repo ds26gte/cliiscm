@@ -3,7 +3,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20170110") ;last change
+(defvar *cliiscm-version* "20170118") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -19,14 +19,15 @@
 (sb-alien:define-alien-routine system sb-alien:int (command sb-alien:c-string))
 
 #-sbcl
-(defun system (cmd)
+(defun cliiscm-system (cmd)
   #+abcl (ext:run-shell-command cmd)
   #+allegro (excl:shell cmd)
   #+clisp (ext:shell cmd)
   #+clozure (ccl::os-command cmd)
   #+cmucl (ext:run-program "sh" (list "-c" cmd) :output t)
   #+ecl (si:system cmd)
-  #+mkcl (mkcl:system cmd))
+  #+mkcl (mkcl:system cmd)
+  #+sbcl (system cmd))
 
 (load (merge-pathnames "cliiscm-aliases" *load-pathname*))
 
@@ -49,6 +50,7 @@
       (pprint res o)
       (terpri o))))
 
+
 (defun translate-port-to-port (i o)
   (loop
     (let ((x (read i nil :eof-object)))
@@ -63,8 +65,16 @@
   (unless *source-file-translated-p*
     (setq *source-file-translated-p* t)
     (let ((*reading-source-file-p* t))
-      (format o "~%;Translated from Common Lisp source ~a by CLiiScm v. ~a.~%~%"
-              *source-file* *cliiscm-version*)
+      (format o "~%;Translated from Common Lisp source ~a by CLiiScm v. ~a, ~a.~%~%"
+              *source-file* *cliiscm-version*
+              #+abcl :abcl
+              #+clisp :clisp
+              #+clozure :clozure
+              #+cmucl :cmucl
+              #+ecl :ecl
+              #+mkcl :mkcl
+              #+sbcl :sbcl
+              )
       (translate-file-to-port *source-file* o))))
 
 (defun defmacro-to-define-syntax (e)
@@ -148,11 +158,11 @@
           (translate-file-to-port user-override-file o))
         ;(format t "defs-to-ignore = ~s~%" *defs-to-ignore*)
         (translate-source-file o)))
-    (system (concatenate 'string "sed -i -e 's/\\<nil\\>/()/g' " target-file))
-    (system (concatenate 'string "sed -i -e 's/#\\\\Newline/#\\\\newline/g' " target-file))
-    (system (concatenate 'string "sed -i -e 's/#\\\\Return/#\\\\return/g' " target-file))
-    (system (concatenate 'string "sed -i -e 's/#\\\\Tab/#\\\\tab/g' " target-file))
-    (system (concatenate 'string "sed -i -e 's/#\\\\$/#\\\\ /' " target-file))
+    (cliiscm-system (concatenate 'string "sed -i -e 's/\\<nil\\>/()/g' " target-file))
+    (cliiscm-system (concatenate 'string "sed -i -e 's/#\\\\Newline/#\\\\newline/g' " target-file))
+    (cliiscm-system (concatenate 'string "sed -i -e 's/#\\\\Return/#\\\\return/g' " target-file))
+    (cliiscm-system (concatenate 'string "sed -i -e 's/#\\\\Tab/#\\\\tab/g' " target-file))
+    (cliiscm-system (concatenate 'string "sed -i -e 's/#\\\\$/#\\\\ /' " target-file))
     ;(format t "postproc= ~s~%" *postprocessing*)
     (dolist (p *postprocessing*)
       (eval p))))
