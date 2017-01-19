@@ -45,11 +45,10 @@
 (defun translate-toplevel-source-exp-to-port (e o)
   (let ((res e))
     (when *reading-source-file-p*
-      (setq res (translate-exp (nsublis *cliiscm-aliases* e))))
+      (setq res (translate-exp (nsublis *cliiscm-read-aliases* e))))
     (when (consp res)
-      (pprint res o)
+      (pprint (nsublis *cliiscm-write-pre-aliases* res) o)
       (terpri o))))
-
 
 (defun translate-port-to-port (i o)
   (loop
@@ -107,13 +106,13 @@
                     ((member a *disallowed-calls*) nil)
                     (t (translate-toplevel-source-exp-to-port x o))))
             (t (case a
-                 (cliiscm-rename 
+                 (cliiscm-rename
                   (dolist (y (cdr x))
-                    (push (cons (car y) (cadr y)) *cliiscm-aliases*)))
+                    (push (cons (car y) (cadr y)) *cliiscm-read-aliases*)))
                  (cliiscm-rename-def
                    (dolist (y (cdr x))
                      (let ((new-name (cadr y)))
-                       (push (cons (car y) new-name) *cliiscm-aliases*)
+                       (push (cons (car y) new-name) *cliiscm-read-aliases*)
                        (push new-name *defs-to-ignore*))) )
                  (cliiscm-ignore-def
                    (dolist (name (cdr x))
@@ -135,7 +134,7 @@
                  (t (note-down-defs x)
                     (when (eq a 'defmacro)
                       (setq x (defmacro-to-define-syntax x)))
-                    (pprint x o)
+                    (pprint (nsublis *cliiscm-write-pre-aliases* x) o)
                     (terpri o))))))))
 
 ;(trace translate-toplevel-exp-to-port)

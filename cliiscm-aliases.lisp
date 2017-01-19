@@ -2,7 +2,7 @@
 
 ;last change 2017-01-18
 
-(defvar *cliiscm-aliases-list*
+(defvar *cliiscm-read-aliases-list*
   '(
 
     *standard-input* (current-input-port)
@@ -81,13 +81,12 @@
     terpri newline
     upper-case-p char-upper-case?
     values list
-    values void
     vectorp vector?
     zerop zero?
 
     ;quasiquote
 
-    #+(or ecl mkcl) si:quasiquote 
+    #+(or ecl mkcl) si:quasiquote
     #+(or ecl mkcl) quasiquote
 
     ;unquote
@@ -98,7 +97,7 @@
     ;unquote-splice
 
     #+(or ecl mkcl) si:unquote-splice
-    #+(or ecl mkcl) unquote-splice
+    #+(or ecl mkcl) unquote-splicing
 
     ;getenv
 
@@ -142,11 +141,34 @@
 
     ))
 
-(defvar *cliiscm-aliases* '())
+(defvar *cliiscm-read-aliases* '())
 
-(let ((ll *cliiscm-aliases-list*))
+(let ((ll *cliiscm-read-aliases-list*))
   (loop
     (when (null ll) (return))
-    (push (cons (car ll) (cadr ll)) *cliiscm-aliases*)
+    (push (cons (car ll) (cadr ll)) *cliiscm-read-aliases*)
+    (pop ll)
+    (pop ll)))
+
+(defvar *cliiscm-write-pre-aliases-list*
+  '(
+
+    #+ecl si:quasiquote
+    #+ecl quasiquote
+
+    #+ecl si:unquote
+    #+ecl unquote
+
+    #+ecl si:unquote-splice
+    #+ecl unquote-splicing
+
+    ))
+
+(defvar *cliiscm-write-pre-aliases* '())
+
+(let ((ll *cliiscm-write-pre-aliases-list*))
+  (loop
+    (when (null ll) (return))
+    (push (cons (car ll) (cadr ll)) *cliiscm-write-pre-aliases*)
     (pop ll)
     (pop ll)))
