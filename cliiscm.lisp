@@ -1,9 +1,17 @@
+":"; if test "$LISP" = abcl; then exec abcl --load $0 --batch
+":"; elif test "$LISP" = clisp; then exec clisp $0 -q
+":"; elif test "$LISP" = clozure; then exec ccl -l $0 -b
+":"; elif test "$LISP" = ecl; then exec ecl -shell $0
+":"; elif test "$LISP" = mkcl; then exec mkcl -shell $0
+":"; else exec sbcl --script $0
+":"; fi
+
 #+sbcl
 (declaim (sb-ext:muffle-conditions style-warning))
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20170118") ;last change
+(defvar *cliiscm-version* "20170121") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -18,6 +26,9 @@
 #+sbcl
 (sb-alien:define-alien-routine system sb-alien:int (command sb-alien:c-string))
 
+#+sbcl
+(defun cliiscm-system (cmd) (system cmd))
+
 #-sbcl
 (defun cliiscm-system (cmd)
   #+abcl (ext:run-shell-command cmd)
@@ -26,8 +37,7 @@
   #+clozure (ccl::os-command cmd)
   #+cmucl (ext:run-program "sh" (list "-c" cmd) :output t)
   #+ecl (si:system cmd)
-  #+mkcl (mkcl:system cmd)
-  #+sbcl (system cmd))
+  #+mkcl (mkcl:system cmd))
 
 (load (merge-pathnames "cliiscm-aliases" *load-pathname*))
 

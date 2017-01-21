@@ -1,4 +1,4 @@
-;last modified 2017-01-17
+;last modified 2017-01-21
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -56,8 +56,7 @@
     res))
 
 (defun translate-implicit-progn (ee)
-  (let ((n (length ee)) res)
-    (prune-begins (mapcar #'translate-exp ee))))
+  (prune-begins (mapcar #'translate-exp ee)))
 
 (defun translate-progn (ee)
   (let ((ee-i (translate-implicit-progn ee)))
@@ -263,15 +262,19 @@
        %res)))
 
 (def-cliiscm-translator eval-when (&rest ee)
+  (declare (ignore ee))
   `false)
 
 (def-cliiscm-translator declaim (&rest ee)
+  (declare (ignore ee))
   `false)
 
 (def-cliiscm-translator declare (&rest ee)
+  (declare (ignore ee))
   `false)
 
 (def-cliiscm-translator the (tipe val)
+  (declare (ignore tipe))
   val)
 
 (def-cliiscm-translator prog1 (e &rest ee)
@@ -576,12 +579,15 @@
   (translate-exp `(list-ref ,ll ,i)))
 
 (def-cliiscm-translator assoc (v s &rest ee)
+  (declare (ignore ee))
   `(assoc ,(translate-exp v) ,(translate-exp s)))
 
 (def-cliiscm-translator member (v s &rest ee)
+  (declare (ignore ee))
   `(member ,(translate-exp v) ,(translate-exp s)))
 
 (def-cliiscm-translator delete (v s &rest ee)
+  (declare (ignore ee))
   `(remove ,(translate-exp v) ,(translate-exp s)))
 
 (def-cliiscm-translator floor (p &optional q)
@@ -603,6 +609,7 @@
          %read-res)))
 
 (def-cliiscm-translator peek-char (x port &rest ee)
+  (declare (ignore x))
   (if (null ee)
       `(peek-char ,(translate-exp port)))
   `(let ((%peek-char-res (peek-char ,(translate-exp port))))
@@ -633,6 +640,7 @@
   (translate-exp `(setf ,s (cons ,v ,s))))
 
 (def-cliiscm-translator pushnew (v s &rest ee)
+  (declare (ignore ee))
   `(let ((%push-added-value ,(translate-exp v))
          (%push-old-stack ,(translate-exp s)))
      (cond ((member %push-added-value %push-old-stack) %push-old-stack)
