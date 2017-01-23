@@ -1,4 +1,4 @@
-;last modified 2017-01-21
+;last modified 2017-01-22
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -119,7 +119,8 @@
               `(lambda ,new-params
                  (let ((%lambda-rest-arg-len (length %lambda-rest-arg))
                        ,@(mapcar (lambda (opt)
-                                   (if (consp opt) opt
+                                   (if (consp opt)
+                                       `(,(car opt) ,(translate-exp (cadr opt)))
                                        `(,opt false)))
                                  opts))
                    ,@(let (s
