@@ -1,4 +1,4 @@
-;last modified 2017-01-22
+;last modified 2019-12-09
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -177,15 +177,17 @@
     (and (char= (char x-s 0) #\*)
          (char= (char x-s (- n 1)) #\*))))
 
-(defun nil-to-false (x)
-  (if (not x) 'false x))
+(defun translate-let-binding (x &optional e)
+  (let ((v (translate-exp e)))
+    `(,x ,v)))
 
-(defun translate-let-binding (x v)
-  (cond ((special-var-p x)
-         (push x *fluid-vars*)
-         (let ((x-prime (intern (concatenate 'string "%FLUID-VAR-" (symbol-name x)))))
-           `(,x-prime ,(nil-to-false v))))
-        (t `(,x ,(nil-to-false v)))))
+(defun translate-let-binding-check-fluid (x &optional e)
+  (let ((v (translate-exp e)))
+    (cond ((special-var-p x)
+           (push x *fluid-vars*)
+           (let ((x-prime (intern (concatenate 'string "%FLUID-VAR-" (symbol-name x)))))
+             `(,x-prime ,v)))
+          (t `(,x ,v)))))
 
 (def-cliiscm-translator let (vars &rest body)
   (if (and (= (length body) 1)
@@ -194,20 +196,28 @@
          ,(translate-exp `(let ,vars
                             (lambda ,(caddr (car body))
                               ,@(cdddr (car body))))))
-      (let ((*fluid-vars* '()))
-        `(let ,(mapcar
-                 (lambda (x) (if (consp x)
-                                 (translate-let-binding (car x) (translate-exp (cadr x)))
-                                 (translate-let-binding x 'false)))
-                 vars)
-           ,@(if *fluid-vars*
-                 (list
-                   `(fluid-let ,(mapcar (lambda (x)
-                                          `(,x ,(intern (concatenate 'string "%FLUID-VAR-"
-                                                          (symbol-name x)))))
-                                        *fluid-vars*)
-                               ,@(translate-implicit-progn body)))
-                 (translate-implicit-progn body))))))
+      (if (every #'special-var-p (mapcar (lambda (x) (if (consp x) (car x) x)) vars))
+          `(fluid-let ,(mapcar (lambda (x)
+                                 (if (consp x)
+                                     (translate-let-binding (car x) (cadr x))
+                                     (translate-let-binding x)))
+                               vars)
+             ,@(translate-implicit-progn body))
+          (let ((*fluid-vars* '()))
+            `(let ,(mapcar
+                     (lambda (x)
+                       (if (consp x)
+                           (translate-let-binding-check-fluid (car x) (cadr x))
+                           (translate-let-binding-check-fluid x)))
+                     vars)
+               ,@(if *fluid-vars*
+                     (list
+                       `(fluid-let ,(mapcar (lambda (x)
+                                              `(,x ,(intern (concatenate 'string "%FLUID-VAR-"
+                                                              (symbol-name x)))))
+                                            (reverse *fluid-vars*))
+                          ,@(translate-implicit-progn body)))
+                     (translate-implicit-progn body)))))))
 
 (def-cliiscm-translator let* (vars &rest body)
   (if vars (translate-exp `(let (,(car vars)) (let* ,(cdr vars) ,@body)))
