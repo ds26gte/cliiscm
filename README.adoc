@@ -17,9 +17,15 @@ position of an immediate subform of the `loop`. A more general
 translation of `loop` would have made the more common uses
 unnecessarily inefficient.
 
-Specify the files to be ported (without quotes) in the file
-`cliiscm-files-to-be-ported.lisp` in the working directory.  In
-the following, assume `jobname.lisp` to be a file to be ported.
+== Usage
+
+Specify the files to be ported in the file
+`cliiscm-files-to-be-ported.lisp` in the working directory. The
+filenames are separated by space (typically newline). Filenames
+may be double-quoted (which allows them to have spaces). If
+a filename isn't double-quoted, it is automatically lower-cased.
+
+In the following, assume `jobname.lisp` is a file that is to be ported.
 
 Start Common Lisp and the load the file `cliiscm.lisp` (using the
 appropriate relative or full pathname). When CLiiScm is done, it
@@ -29,6 +35,8 @@ change the name of the output file(s).)
 
 For each file `jobname.lisp` to be ported, a user override file
 `cliiscm-jobname.lisp` can be provided in the working directory.
+
+=== Directives in the user override file
 
 In the user override file, the following directives can be used
 to guide the porting process:
@@ -64,4 +72,4 @@ to rename or change the permissions of the output file.)
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2019-11-22
+// Last modified 2020-02-01

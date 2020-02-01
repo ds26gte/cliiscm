@@ -12,7 +12,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20170126") ;last change
+(defvar *cliiscm-version* "20200201") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -50,7 +50,9 @@
       (loop
         (let ((f (read i nil :eof-object)))
           (when (eq f :eof-object) (return))
-          (push (string-downcase (symbol-name f)) s)))
+          (when (symbolp f)
+            (setq f (string-downcase (symbol-name f))))
+          (push f s)))
       s)))
 
 (defun translate-toplevel-source-exp-to-port (e o)
