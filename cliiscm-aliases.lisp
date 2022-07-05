@@ -1,6 +1,6 @@
 ;name conversions
 
-;last change 2017-01-18
+;last change 2022-07-04
 
 (defvar *cliiscm-read-aliases-list*
   '(
@@ -110,17 +110,14 @@
     #+mkcl mkcl:getenv
     #+mkcl getenv
 
-    #+clisp ext:getenv
-    #+clisp getenv
+    #+(or abcl clasp clisp) ext:getenv
+    #+(or abcl clasp clisp) getenv
 
     #+sbcl sb-ext:posix-getenv
     #+sbcl getenv
 
     #+clozure ccl::getenv
     #+clozure getenv
-
-    #+abcl ext:getenv
-    #+abcl getenv
 
     ;system
 
@@ -132,6 +129,9 @@
 
     #+(and (or unix darwin) ecl) si:system
     #+(and (or unix darwin) ecl) system
+
+    #+clasp ext:system
+    #+clasp system
 
     #+abcl ext:run-shell-command
     #+abcl system

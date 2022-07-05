@@ -1,5 +1,6 @@
 ":"; if test -z "$LISP"; then export LISP=ecl; fi
 ":"; if test "$LISP" = abcl; then exec abcl --load $0 --batch
+":"; elif test "$LISP" = clasp; then exec clasp --script $0 2>/dev/null
 ":"; elif test "$LISP" = clisp; then exec clisp $0 -q
 ":"; elif test "$LISP" = clozure; then exec ccl -l $0 -b
 ":"; elif test "$LISP" = ecl; then exec ecl -shell $0
@@ -12,7 +13,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20200201") ;last change
+(defvar *cliiscm-version* "20220704") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -34,6 +35,7 @@
 (defun cliiscm-system (cmd)
   #+abcl (ext:run-shell-command cmd)
   #+allegro (excl:shell cmd)
+  #+clasp (ext:system cmd)
   #+clisp (ext:shell cmd)
   #+clozure (ccl::os-command cmd)
   #+cmucl (ext:run-program "sh" (list "-c" cmd) :output t)
@@ -80,6 +82,7 @@
       (format o "~%;Translated from Common Lisp source ~a by CLiiScm v. ~a, ~a.~%~%"
               *source-file* *cliiscm-version*
               #+abcl :abcl
+              #+clasp :clasp
               #+clisp :clisp
               #+clozure :clozure
               #+cmucl :cmucl
