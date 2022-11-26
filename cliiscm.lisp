@@ -13,7 +13,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20220704") ;last change
+(defvar *cliiscm-version* "20221126") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -118,7 +118,10 @@
       ;(format t "toplevel a = ~s~%" a)
       (cond (*reading-source-file-p*
               (cond ((eq a 'defmacro)
-                     (translate-toplevel-source-exp-to-port (translate-exp x) o))
+                     (let ((name (cadr x)))
+                       (unless (and (symbolp name)
+                                    (member (nsublis *cliiscm-read-aliases* name) *defs-to-ignore*))
+                         (translate-toplevel-source-exp-to-port (translate-exp x) o))))
                     ((member a *disallowed-calls*) nil)
                     (t (translate-toplevel-source-exp-to-port x o))))
             (t (case a

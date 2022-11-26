@@ -27,9 +27,9 @@ a filename isn't double-quoted, it is automatically lower-cased.
 
 In the following, assume `jobname.lisp` is a file that is to be ported.
 
-Start Common Lisp and the load the file `cliiscm.lisp` (using the
+Start Common Lisp and then load the file `cliiscm.lisp` (using the
 appropriate relative or full pathname). When CLiiScm is done, it
-will  generally leave for each `jobname.lisp` the ported
+will generally leave for each `jobname.lisp` the ported
 equivalent `my-jobmame.lisp`. (You can use CLiiScm directives to
 change the name of the output file(s).)
 
@@ -72,4 +72,4 @@ to rename or change the permissions of the output file.)
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2020-02-01
+// Last modified 2022-11-26
