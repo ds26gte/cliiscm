@@ -1,4 +1,4 @@
-;last modified 2019-12-09
+;last modified 2022-12-15
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -241,13 +241,16 @@
       `(define ,(cons fname (cadr lambda-exp)) ,@(cddr lambda-exp)))))
 
 (def-cliiscm-translator setq (&rest ee)
-  (let ((assignments ee) s last-x)
+  (let ((assignments ee) s)
+    (let ((n (length assignments)))
     (loop
-      (when (null assignments) (return `(begin ,@s ,last-x)))
-      (setq last-x (car assignments))
-      (setq s (append s (list `(set! ,last-x ,(translate-exp (cadr assignments))))))
+      (when (null assignments)
+        (return (if (<= n 2)
+                    (car s)
+                    `(begin ,@s))))
+      (setq s (append s (list `(set! ,(car assignments) ,(translate-exp (cadr assignments))))))
       (pop assignments)
-      (pop assignments))))
+      (pop assignments)))))
 
 (def-cliiscm-translator progn (&rest ee)
   (translate-progn ee))
@@ -311,7 +314,7 @@
                        (list
                          (let ((e (elt ee i)))
                            (cond (return-found-p
-                                   (translate-exp `(%unless %loop-returned ,e)))
+                                   (translate-exp `(unless %loop-returned ,e)))
                                  (t
                                    (when (tree-member 'return e)
                                      (setq return-found-p t))
@@ -358,25 +361,26 @@
   (translate-exp `(setf ,x (- ,(translate-exp x) ,(translate-exp (or v 1))))))
 
 (def-cliiscm-translator setf (&rest ee)
-  (let ((assignments ee) s last-lhs)
-    (loop
-      (when (null assignments) (return `(begin ,@s ,(translate-exp last-lhs))))
-      (setq
-        s
-        (append s
-                (list
-                  (let ((lhs (car assignments)) (rhs (cadr assignments)))
-                    (setq last-lhs lhs)
-                    (cond ((consp lhs)
-                           (let* ((getter (car lhs))
-                                  (setter (gethash getter *setf-setters*)))
-                             (unless setter
-                               (format t "missing setter for ~s~%" getter))
-                             `(,setter ,@(mapcar #'translate-exp (cdr lhs))
-                                       ,(translate-exp rhs))))
-                          (t `(set! ,(translate-exp lhs) ,(translate-exp rhs))))))))
-      (pop assignments)
-      (pop assignments))))
+  (let* ((assignments ee)
+         s (n (length assignments)))
+      (loop
+        (when (null assignments)
+          (return (if (<= n 2)
+                      (car s)
+                      `(begin ,@s))))
+        (setq s (append s
+                        (list
+                          (let ((lhs (car assignments)) (rhs (cadr assignments)))
+                            (cond ((consp lhs)
+                                   (let* ((getter (car lhs))
+                                          (setter (gethash getter *setf-setters*)))
+                                     (unless setter
+                                       (format t "missing setter for ~s~%" getter))
+                                     `(,setter ,@(mapcar #'translate-exp (cdr lhs))
+                                               ,(translate-exp rhs))))
+                                  (t `(set! ,(translate-exp lhs) ,(translate-exp rhs))))))))
+        (pop assignments)
+        (pop assignments))))
 
 (defun translate-case-tags (tags)
   (if (consp tags) tags
@@ -406,18 +410,12 @@
        ,(translate-exp else-branch)))
 
 (def-cliiscm-translator when (test &rest clauses)
-  `(cond (,(translate-exp test)
-           ,@(translate-implicit-progn clauses))
-         (else false)))
-
-(def-cliiscm-translator %unless (test &rest clauses)
-  `(unless ,(translate-exp test)
+  `(when ,(translate-exp test)
      ,@(translate-implicit-progn clauses)))
 
 (def-cliiscm-translator unless (test &rest clauses)
-  `(cond ((not ,(translate-exp test))
-          ,@(translate-implicit-progn clauses))
-         (else false)))
+  `(unless ,(translate-exp test)
+     ,@(translate-implicit-progn clauses)))
 
 (def-cliiscm-translator case (tag &rest clauses)
   `(case ,(translate-exp tag)

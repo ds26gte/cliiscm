@@ -17,6 +17,11 @@ position of an immediate subform of the `loop`. A more general
 translation of `loop` would have made the more common uses
 unnecessarily inefficient.
 
+It also doesn't have `setf` and `setq` return the set value, or
+`when` and `unless` return false as an implicit `else`.
+These are not common enough uses, and accommodating such behavior
+makes every translation of these expressions verbose.
+
 == Usage
 
 Specify the files to be ported in the file
@@ -72,4 +77,4 @@ to rename or change the permissions of the output file.)
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2022-11-26
+// Last modified 2022-12-15
