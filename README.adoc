@@ -19,18 +19,25 @@ unnecessarily inefficient.
 
 It also doesn't have `setf` and `setq` return the set value, or
 `when` and `unless` return false as an implicit `else`.
-These are not common enough uses, and accommodating such behavior
-makes every translation of these expressions verbose.
+These are not common enough uses, and accommodating such behavior,
+although truer to the Common Lisp source,
+would make every translation of these expressions verbose.
 
 == Usage
 
 Specify the files to be ported in the file
-`cliiscm-files-to-be-ported.lisp` in the working directory. The
-filenames are separated by space (typically newline). Filenames
-may be double-quoted (which allows them to have spaces). If
-a filename isn't double-quoted, it is automatically lower-cased.
+`cliiscm-files-to-be-ported.lisp` in the working directory. This
+is a Lisp-readable file, with each ported file being specified as
+a Lisp symbol or string, and you can use comments and spacing to
+taste. Essentially the filenames are separated by space (newline
+for maintainability). If a filename itself has spaces or
+upper-case characters in it, specify it as a string. If a
+filename isn't a string, it is automatically lower-cased.
 
 In the following, assume `jobname.lisp` is a file that is to be ported.
+
+Create the file `cliiscm-files-to-be-ported.lisp` containing the
+Lisp symbol `jobname.lisp` or string `"jobname.lisp"`.
 
 Start Common Lisp and then load the file `cliiscm.lisp` (using the
 appropriate relative or full pathname). When CLiiScm is done, it
@@ -46,35 +53,35 @@ For each file `jobname.lisp` to be ported, a user override file
 In the user override file, the following directives can be used
 to guide the porting process:
 
-- `(cliiscm-rename (old1 new1) \...)` will change all
-occurrences of `old1 \...` to `new1 \...`.
+- `+(cliiscm-rename (old1 new1) ...)+` will change all
+occurrences of `+old1 ...+` to `+new1 ...+`.
 
-- `(cliiscm-rename-def (old1 new1) \...)` will ignore the
-definitions for `old1 \...` in `jobname.lisp` and will change all
-other occurrences of them to `new1 \...`.
+- `+(cliiscm-rename-def (old1 new1) ...)+` will ignore the
+definitions for `+old1 ...+` in `jobname.lisp` and will change all
+other occurrences of them to `+new1 ...+`.
 
-- `(cliiscm-ignore-def name1 \...)` will ignore the
-definitions for `name1 \...`.
+- `+(cliiscm-ignore-def name1 ...)+` will ignore the
+definitions for `+name1 ...+`.
 
-- `(cliiscm-uncall name1 \...)` will ignore all top-level calls
-to `name1 \...`.
+- `+(cliiscm-uncall name1 ...)+` will ignore all top-level calls
+to `+name1 ...+`.
 
-- `(cliiscm-defsetf (getter1 setter1) \...)` will associate
-`setter1 \...` as the setter procedures for `getter1 \...`.
+- `+(cliiscm-defsetf (getter1 setter1) ...)+` will associate
+`+setter1 ...+` as the setter procedures for `+getter1 ...+`.
 
-- `(cliiscm-insert x \...)` will insert `x \...` at the head of
+- `+(cliiscm-insert x ...)+` will insert `+x ...+` at the head of
 the output file.
 
 - `(cliiscm-postamble)` will position the contents of the
 source file at that point, so any subsequent directives will go
 after that.
 
-- `(cliiscm-postprocess x \...)` will perform the actions `x
-\...` after the output file has been created. (This can be used
+- `+(cliiscm-postprocess x ...)+` will perform the actions `+x
+...+` after the output file has been created. (This can be used
 to rename or change the permissions of the output file.)
 
 - Any definitions in the user override file will
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2022-12-15
+// Last modified 2022-12-20
