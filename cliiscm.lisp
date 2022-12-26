@@ -13,7 +13,7 @@
 
 (setq *print-case* :downcase)
 
-(defvar *cliiscm-version* "20221126") ;last change
+(defvar *cliiscm-version* "20221226") ;last change
 
 (defvar *reading-source-file-p*)
 (defvar *disallowed-calls*)
@@ -128,12 +128,12 @@
                  (cliiscm-rename
                   (dolist (y (cdr x))
                     (push (cons (car y) (cadr y)) *cliiscm-read-aliases*)))
-                 (cliiscm-rename-def
+                 ((cliiscm-ignoredef-rename cliiscm-rename-def)
                    (dolist (y (cdr x))
                      (let ((new-name (cadr y)))
                        (push (cons (car y) new-name) *cliiscm-read-aliases*)
                        (push new-name *defs-to-ignore*))) )
-                 (cliiscm-ignore-def
+                 ((cliiscm-ignoredef cliiscm-ignore-def)
                    (dolist (name (cdr x))
                      (push name *defs-to-ignore*)))
                  (cliiscm-uncall

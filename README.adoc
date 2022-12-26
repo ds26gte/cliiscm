@@ -56,11 +56,11 @@ to guide the porting process:
 - `+(cliiscm-rename (old1 new1) ...)+` will change all
 occurrences of `+old1 ...+` to `+new1 ...+`.
 
-- `+(cliiscm-rename-def (old1 new1) ...)+` will ignore the
+- `+(cliiscm-ignoredef-rename (old1 new1) ...)+` will ignore the
 definitions for `+old1 ...+` in `jobname.lisp` and will change all
 other occurrences of them to `+new1 ...+`.
 
-- `+(cliiscm-ignore-def name1 ...)+` will ignore the
+- `+(cliiscm-ignoredef name1 ...)+` will ignore the
 definitions for `+name1 ...+`.
 
 - `+(cliiscm-uncall name1 ...)+` will ignore all top-level calls
@@ -84,4 +84,4 @@ to rename or change the permissions of the output file.)
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2022-12-20
+// Last modified 2022-12-26
