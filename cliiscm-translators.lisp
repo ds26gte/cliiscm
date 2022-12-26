@@ -1,4 +1,4 @@
-;last modified 2022-12-15
+;last modified 2022-12-26
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -530,15 +530,21 @@
 |#
 
 (def-cliiscm-translator with-open-file (open-args &rest body)
-  (let ((wof-port (car open-args)))
-    (translate-exp
-      `(let* ((,wof-port (open ,@(cdr open-args)))
-              (%with-open-file-res (progn ,@body)))
-         (when ,wof-port
-           ((if (input-port? ,wof-port)
-                close-input-port
-                close-output-port) ,wof-port))
-         %with-open-file-res))))
+  (let ((wof-port (car open-args))
+        (wof-file (cadr open-args))
+        (wof-rest (cddr open-args)))
+    (let* ((close-port (cond ((and (= (list-length wof-rest) 2)
+                                  (eq (car wof-rest) :direction)
+                                  (eq (cadr wof-rest) :output))
+                             'close-output-port)
+                            (t 'close-input-port)))
+           (wof-result (if (eq close-port 'close-input-port)
+                           '%with-open-input-file-result '%with-open-output-file-result)))
+      (translate-exp
+        `(let* ((,wof-port (open ,wof-file ,@wof-rest))
+                (,wof-result (progn ,@body)))
+           (,close-port ,wof-port)
+           ,wof-result)))))
 
 #|
 (def-cliiscm-translator with-output-to-string (wots-arg &rest body)
@@ -561,7 +567,7 @@
                       (string-reverse-index %position-s %position-v))
                      (else
                        ;not dealing with :from-end for lists
-                       (list-position %position-v %position-s)))))
+                       (index-of %position-s %position-v )))))
           (has-start-p
             `(let ((%position-v ,(translate-exp v))
                    (%position-s ,(translate-exp s))
