@@ -1,4 +1,4 @@
-;last modified 2022-12-26
+;last modified 2022-12-29
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -546,13 +546,11 @@
            (,close-port ,wof-port)
            ,wof-result)))))
 
-#|
-(def-cliiscm-translator with-output-to-string (wots-arg &rest body)
-  (let ((wots-port (car wots-arg)))
-    (unless (eq wots-port '*standard-output*)
-      (error 'with-output-to-string "has to be to *standard-output*"))
-    `(with-output-to-string (lambda () ,@(mapcar #'translate-exp body)))))
-|#
+(def-cliiscm-translator with-output-to-string (arg1 &rest body)
+  (format t "doing with-output-to-string ~s ~s~%" arg1 body)
+  (unless (equal arg1 '((current-output-port)))
+    (error "with-output-to-string first arg has to be (*standard-output*)"))
+  `(with-output-to-string (lambda () ,@(mapcar #'translate-exp body))))
 
 (def-cliiscm-translator position (v s &rest ee)
   (let ((has-from-end-p (member :from-end ee))
