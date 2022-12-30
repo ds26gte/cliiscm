@@ -547,7 +547,6 @@
            ,wof-result)))))
 
 (def-cliiscm-translator with-output-to-string (arg1 &rest body)
-  (format t "doing with-output-to-string ~s ~s~%" arg1 body)
   (unless (equal arg1 '((current-output-port)))
     (error "with-output-to-string first arg has to be (*standard-output*)"))
   `(with-output-to-string (lambda () ,@(mapcar #'translate-exp body))))
