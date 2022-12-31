@@ -48,10 +48,31 @@ change the name of the output file(s).)
 For each file `jobname.lisp` to be ported, a user override file
 `cliiscm-jobname.lisp` can be provided in the working directory.
 
-=== Directives in the user override file
+=== Example
+
+For a working example, see the TeX2page distribution. Here, the
+only CL file to be translated is `tex2page.lisp`, so there is a
+file `clliscm-files-to-be-ported.lisp` that contains
+`tex2page.lisp` as its sole entry.
+
+This file has an override file, which is called
+`clliscm-tex2page.lisp`.  When loading `cliiscm.scm` into CL, it
+finds `cliiscm-files-to-be-ported.lisp`, determines
+`tex2page.lisp` is the only file to be translated, checks the
+corresponding user-override file `cliiscm-tex2page.lisp` and
+proceeds with the translation.
+
+While the output file is by default `my-tex2page.lisp`, we use
+the CLiiScm directive, `cliiscm-postprocess`, described below, to
+give it a more Scheme-y name.
+
+== Directives in the user override file
 
 In the user override file, the following directives can be used
 to guide the porting process:
+
+- `+(cliiscm-ignoredef name1 ...)+` will ignore the
+definitions for `+name1 ...+`.
 
 - `+(cliiscm-rename (old1 new1) ...)+` will change all
 occurrences of `+old1 ...+` to `+new1 ...+`.
@@ -59,9 +80,6 @@ occurrences of `+old1 ...+` to `+new1 ...+`.
 - `+(cliiscm-ignoredef-rename (old1 new1) ...)+` will ignore the
 definitions for `+old1 ...+` in `jobname.lisp` and will change all
 other occurrences of them to `+new1 ...+`.
-
-- `+(cliiscm-ignoredef name1 ...)+` will ignore the
-definitions for `+name1 ...+`.
 
 - `+(cliiscm-uncall name1 ...)+` will ignore all top-level calls
 to `+name1 ...+`.
@@ -84,4 +102,4 @@ to rename or change the permissions of the output file.)
 automatically cause definitions of the same names in the source
 file to be ignored.
 
-// Last modified 2022-12-26
+// Last modified 2022-12-30
