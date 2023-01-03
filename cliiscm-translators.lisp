@@ -1,4 +1,4 @@
-;last modified 2022-12-29
+;last modified 2023-01-03
 
 (defvar *cliiscm-translators* (make-hash-table))
 
@@ -397,6 +397,11 @@
                         (setq output-clause
                               `(else ,@(translate-implicit-progn
                                          (cdr clause)))))
+                       ((and (consp clause-test) (= (length clause-test) 3)
+                             (eq (car clause-test) 'setq))
+                        (setq output-clause
+                              `((begin ,(translate-exp clause-test) ,(cadr clause-test))
+                                ,@(translate-implicit-progn (cdr clause)))))
                        (t
                          (setq output-clause
                                `(,(translate-exp clause-test)
